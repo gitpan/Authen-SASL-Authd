@@ -1,0 +1,37 @@
+NAME
+    Authen::SASL::Authd - Client authentication via Cyrus saslauthd or
+    Dovecot authentication daemon.
+
+SYNOPSIS
+        use Authen::SASL::Authd qw(auth_cyrus auth_dovecot);
+
+        print "saslauthd said ok\n" if auth_cyrus('login', 'passwd');
+
+        print "dovecot-auth denied login\n" unless auth_dovecot('login', 'passwd');
+
+DESCRIPTION
+    The "Authen::SASL::Authd" package implements PLAIN authentication
+    protocols used by Cyrus saslauthd and Dovecot authentication daemon. It
+    can be used to process authentication requests against configured SASL
+    mechanism implemented by Cyrus or Dovecot SASL libraries.
+
+METHODS
+    auth_cyrus( 'LOGIN', 'PASSWD', [ service_name => 'SERVICE_NAME', ] [
+    timeout => 'TIMEOUT (sec)', ] [ sock_file => '/SOCK/FILE/NAME', ] )
+    Check provided user name and password against Cyrus saslauthd. Return
+    true if authentication succeeded.
+
+    auth_dovecot( 'LOGIN', 'PASSWD', [ service_name => 'SERVICE_NAME', ] [
+    timeout => 'TIMEOUT (sec)', ] [ sock_file => '/SOCK/FILE/NAME', ] )
+    Check provided user name and password against Dovecot authentication
+    daemon. Return true if authentication succeeded.
+
+AUTHOR
+    Alex Protasenko <aprotasenko@bkmks.com>
+
+COPYRIGHT and LICENSE
+    Copyright 2007 by Alex Protasenko.
+
+    This program is free software; you can redistribute it and/or modify it
+    under the same terms as Perl itself.
+
