@@ -1,5 +1,8 @@
 Revision history for Authen/SASL/Authd.pm.
 
+0.02  Tue Oct  2 00:08:22 EDT 2007
+        - added user existance check function for Dovecot auth daemon
+        - added more consistency checks
 0.01  Fri Sep 21 17:58:53 EDT 2007
         - tested against Cyrus-2.2 and Dovecot-1.0.rc17
         - first version
