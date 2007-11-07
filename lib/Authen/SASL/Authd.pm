@@ -12,7 +12,7 @@ require Exporter;
 @ISA = qw(Exporter);
 @EXPORT_OK = qw(auth_cyrus auth_dovecot user_dovecot);
 
-$VERSION = "0.02";
+$VERSION = "0.04";
 
 
 sub auth_cyrus {
@@ -21,13 +21,13 @@ sub auth_cyrus {
 
     my $service = $prop{service_name} || '';
     my $timeout = $prop{timeout} || 5;
-    my $sock_file = $prop{sock_file} || '/var/run/saslauthd/mux';
+    my $socket = $prop{socket} || '/var/run/saslauthd/mux';
     
-    my $sock = new IO::Socket::UNIX(Type => SOCK_STREAM, Peer => $sock_file) or
-        die "Can't open socket. Check saslauthd is running and $sock_file is readable.";
+    my $sock = new IO::Socket::UNIX(Type => SOCK_STREAM, Peer => $socket) or
+        die "Can't open socket. Check saslauthd is running and $socket is readable.";
 
     $sock->send(pack 'n/a*n/a*n/a*xx', $login, $passwd, $service) or
-        die "Can't write to $sock_file";
+        die "Can't write to $socket";
 
     my $sel = new IO::Select($sock);
     $sel->can_read($timeout) or die 'Timed out while waiting for response';
@@ -44,13 +44,15 @@ sub auth_cyrus {
 sub auth_dovecot {
 
     my ($login, $passwd, %prop) = @_;
+    utf8::encode($login);
+    utf8::encode($passwd);
 
     my $service = $prop{service_name} || '';
     my $timeout = $prop{timeout} || 5;
-    my $sock_file = $prop{sock_file} || '/var/run/dovecot/auth-client';
+    my $socket = $prop{socket} || '/var/run/dovecot/login/default';
 
-    my $sock = new IO::Socket::UNIX(Type => SOCK_STREAM, Peer => $sock_file) or
-        die "Can't open socket. Check dovecot is running and $sock_file is readable.";
+    my $sock = new IO::Socket::UNIX(Type => SOCK_STREAM, Peer => $socket) or
+        die "Can't open socket. Check dovecot is running and $socket is readable.";
 
     my $handshake = read_until($sock, '^DONE$', $timeout);
     die "Unsupported protocol version"
@@ -61,7 +63,7 @@ sub auth_dovecot {
 
     my $base64 = encode_base64("\0$login\0$passwd");
     $sock->send("VERSION\t1\t0\nCPID\t$$\nAUTH\t1\tPLAIN\tservice=$service\tresp=$base64\n") or
-        die "Can't write to $sock_file";
+        die "Can't write to $socket";
 
     my $result = read_until($sock, '\n', $timeout);
 
@@ -74,29 +76,30 @@ sub auth_dovecot {
 sub user_dovecot {
 
     my ($login, %prop) = @_;
+    utf8::encode($login);
 
     my $service = $prop{service_name} || '';
     my $timeout = $prop{timeout} || 5;
-    my $sock_file = $prop{sock_file} || '/var/run/dovecot/auth-master';
+    my $socket = $prop{socket} || '/var/run/dovecot/auth-master';
 
-    my $sock = new IO::Socket::UNIX(Type => SOCK_STREAM, Peer => $sock_file) or
-        die "Can't open socket. Check dovecot is running and $sock_file is readable.";
+    my $sock = new IO::Socket::UNIX(Type => SOCK_STREAM, Peer => $socket) or
+        die "Can't open socket. Check dovecot is running and $socket is readable.";
 
     my $handshake = read_until($sock, '^VERSION\t\d+\t', $timeout);
     die "Unsupported protocol version"
         unless $handshake =~ /^VERSION\t1\t\d+$/m;
 
     $sock->send("VERSION\t1\t0\nUSER\t1\t$login\tservice=$service\n") or
-        die "Can't write to $sock_file";
+        die "Can't write to $socket";
 
     my $result = read_until($sock, '\n', $timeout);
 
     $sock->close;
 
-    return undef if $result !~ /^USER/;
+    return wantarray ? () : undef if $result !~ /^USER/;
 
     my %result = map { split /\=/, $_, 2 } (grep /\=/, (split /[\t\n]/, $result));
-    return \%result;
+    return wantarray ? %result : \%result;
 }
 
 
@@ -130,9 +133,9 @@ Dovecot authentication daemon.
     # authenticate user against Dovecot authentication daemon
     auth_dovecot('login', 'passwd') or die "dovecot-auth: FAIL";
 
-    # check user existance
-    my $user_attr = user_dovecot('login', timeout => 3) or die "dovecot-auth: NO SUCH USER";
-    print "user home: $user_attr->{home}\n";
+    # check user existence
+    my %user_attr = user_dovecot('login', timeout => 3) or die "dovecot-auth: NO SUCH USER";
+    print "user home: $user_attr{home}\n";
 
 =head1 DESCRIPTION
 
@@ -145,29 +148,30 @@ according to the Dovecot authentication daemon.
 =head1 METHODS
 
 =item auth_cyrus( 'LOGIN', 'PASSWD', [ service_name => 'SERVICE_NAME', ]
-    [ timeout => 'TIMEOUT (sec)', ] [ sock_file => '/SOCK/FILE/NAME', ] )
+    [ timeout => 'TIMEOUT (sec)', ] [ socket => '/SOCK/FILE/NAME', ] )
 
 Check supplied user name and password against Cyrus saslauthd.
 Return true if authentication succeeded. Die in case of a likely configuration problem.
 
 =item auth_dovecot( 'LOGIN', 'PASSWD', [ service_name => 'SERVICE_NAME', ]
-    [ timeout => 'TIMEOUT (sec)', ] [ sock_file => '/SOCK/FILE/NAME', ] )
+    [ timeout => 'TIMEOUT (sec)', ] [ socket => '/SOCK/FILE/NAME', ] )
 
 Check supplied user name and password against Dovecot authentication daemon.
 Return true if authentication succeeded. Die in case of a likely configuration problem.
 
 =item user_dovecot( 'LOGIN', [ service_name => 'SERVICE_NAME', ] [ timeout => 'TIMEOUT (sec)', ]
-    [ sock_file => '/SOCK/FILE/NAME', ] )
+    [ socket => '/SOCK/FILE/NAME', ] )
 
 Check if supplied user name exists according to the Dovecot authentication daemon.
-Return a reference to the hashtable with optional user attributes if the user exists, undef otherwise.
+Return a reference to the hashtable (or the hashtable in list context) with optional user attributes
+if the user exists, undef (or empty list in list context) otherwise.
 The hashtable can contain such attributes as 'home', 'gid', 'uid', etc defined by the Dovecot SASL
 implementation.
 Die in case of a likely configuration problem.
 
 =head1 AUTHOR
 
-Alex Protasenko <aprotasenko@bkmks.com>
+Alex Protasenko http://www.bkmks.com/
 
 =head1 COPYRIGHT and LICENSE
 

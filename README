@@ -11,9 +11,9 @@ SYNOPSIS
         # authenticate user against Dovecot authentication daemon
         auth_dovecot('login', 'passwd') or die "dovecot-auth: FAIL";
 
-        # check user existance
-        my $user_attr = user_dovecot('login', timeout => 3) or die "dovecot-auth: NO SUCH USER";
-        print "user home: $user_attr->{home}\n";
+        # check user existence
+        my %user_attr = user_dovecot('login', timeout => 3) or die "dovecot-auth: NO SUCH USER";
+        print "user home: $user_attr{home}\n";
 
 DESCRIPTION
     The "Authen::SASL::Authd" package implements LOGIN authentication
@@ -25,28 +25,29 @@ DESCRIPTION
 
 METHODS
     auth_cyrus( 'LOGIN', 'PASSWD', [ service_name => 'SERVICE_NAME', ] [
-    timeout => 'TIMEOUT (sec)', ] [ sock_file => '/SOCK/FILE/NAME', ] )
+    timeout => 'TIMEOUT (sec)', ] [ socket => '/SOCK/FILE/NAME', ] )
     Check supplied user name and password against Cyrus saslauthd. Return
     true if authentication succeeded. Die in case of a likely configuration
     problem.
 
     auth_dovecot( 'LOGIN', 'PASSWD', [ service_name => 'SERVICE_NAME', ] [
-    timeout => 'TIMEOUT (sec)', ] [ sock_file => '/SOCK/FILE/NAME', ] )
+    timeout => 'TIMEOUT (sec)', ] [ socket => '/SOCK/FILE/NAME', ] )
     Check supplied user name and password against Dovecot authentication
     daemon. Return true if authentication succeeded. Die in case of a likely
     configuration problem.
 
     user_dovecot( 'LOGIN', [ service_name => 'SERVICE_NAME', ] [ timeout =>
-    'TIMEOUT (sec)', ] [ sock_file => '/SOCK/FILE/NAME', ] )
+    'TIMEOUT (sec)', ] [ socket => '/SOCK/FILE/NAME', ] )
     Check if supplied user name exists according to the Dovecot
-    authentication daemon. Return a reference to the hashtable with optional
-    user attributes if the user exists, undef otherwise. The hashtable can
-    contain such attributes as 'home', 'gid', 'uid', etc defined by the
+    authentication daemon. Return a reference to the hashtable (or the
+    hashtable in list context) with optional user attributes if the user
+    exists, undef (or empty list in list context) otherwise. The hashtable
+    can contain such attributes as 'home', 'gid', 'uid', etc defined by the
     Dovecot SASL implementation. Die in case of a likely configuration
     problem.
 
 AUTHOR
-    Alex Protasenko <aprotasenko@bkmks.com>
+    Alex Protasenko http://www.bkmks.com/
 
 COPYRIGHT and LICENSE
     Copyright 2007 by Alex Protasenko.
